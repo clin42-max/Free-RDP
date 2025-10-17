@@ -1,4 +1,4 @@
-name: Free RDP via Pinggy (Windows)
+name: Free RDP via Cloudflare Tunnel
 
 on:
   workflow_dispatch:
@@ -19,24 +19,22 @@ jobs:
           net localgroup administrators CloudUser /add
           Write-Host "✅ User created: CloudUser / UltraFast!2025"
 
-      - name: Download Pinggy Client
+      - name: Download and Install Cloudflared
         shell: pwsh
         run: |
-          Write-Host "🌍 Downloading Pinggy..."
-          Invoke-WebRequest -Uri "https://github.com/jpramesh/pinggy/releases/latest/download/pinggy_windows_amd64.zip" -OutFile "$env:TEMP\pinggy.zip"
-          Expand-Archive "$env:TEMP\pinggy.zip" -DestinationPath "$env:TEMP\pinggy" -Force
-          Copy-Item "$env:TEMP\pinggy\pinggy.exe" "C:\pinggy.exe" -Force
-          Write-Host "✅ Pinggy installed."
+          Write-Host "🌍 Downloading Cloudflared..."
+          Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "C:\cloudflared.exe"
+          Write-Host "✅ Cloudflared installed successfully."
 
-      - name: Start RDP Tunnel via Pinggy
+      - name: Start RDP Tunnel via Cloudflare
         shell: pwsh
         run: |
-          Write-Host "🚀 Starting Pinggy tunnel..."
-          Start-Process -FilePath "C:\pinggy.exe" -ArgumentList "tcp --to 3389" -NoNewWindow
+          Write-Host "🚀 Starting Cloudflare Tunnel..."
+          Start-Process -FilePath "C:\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -NoNewWindow
           Start-Sleep -Seconds 10
-
-          Write-Host "📡 Tunnel started!"
-          Write-Host "🧑 Username: CloudUser"
+          Write-Host "📡 Tunnel started successfully!"
+          Write-Host ""
+          Write-Host "🧑 User: CloudUser"
           Write-Host "🔑 Password: UltraFast!2025"
           Write-Host ""
-          Write-Host "Use the Pinggy link above to connect via Remote Desktop."
+          Write-Host "The public access URL will appear above — copy it and open it in your browser."
