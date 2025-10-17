@@ -1,4 +1,4 @@
-name: Free RDP via Cloudflare Tunnel
+name: Free RDP via Cloudflare Tunnel (Public Access)
 
 on:
   workflow_dispatch:
@@ -9,15 +9,15 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Enable RDP and Create User
+      - name: Enable Remote Desktop and Create User
         shell: pwsh
         run: |
-          Write-Host "🔧 Enabling Remote Desktop..."
+          Write-Host "🔧 Enabling RDP..."
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           net user CloudUser UltraFast!2025 /add
           net localgroup administrators CloudUser /add
-          Write-Host "✅ User created: CloudUser / UltraFast!2025"
+          Write-Host "✅ User CloudUser / UltraFast!2025 created."
 
       - name: Download and Install Cloudflared
         shell: pwsh
@@ -26,15 +26,20 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "C:\cloudflared.exe"
           Write-Host "✅ Cloudflared installed successfully."
 
-      - name: Start RDP Tunnel via Cloudflare
+      - name: Start Public Cloudflare RDP Tunnel
         shell: pwsh
         run: |
-          Write-Host "🚀 Starting Cloudflare Tunnel..."
-          Start-Process -FilePath "C:\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -NoNewWindow
+          Write-Host "🚀 Starting public tunnel..."
+          $proc = Start-Process -FilePath "C:\cloudflared.exe" -ArgumentList "tunnel --url rdp://localhost:3389" -NoNewWindow -PassThru
           Start-Sleep -Seconds 10
-          Write-Host "📡 Tunnel started successfully!"
+
+          Write-Host "`n📡 Waiting for public URL..."
+          Get-Content "$env:USERPROFILE\.cloudflared\logs.txt" -ErrorAction SilentlyContinue | Out-Null
+
+          Start-Sleep -Seconds 5
+          Write-Host "✅ Tunnel started successfully!"
           Write-Host ""
-          Write-Host "🧑 User: CloudUser"
+          Write-Host "🧑 Username: CloudUser"
           Write-Host "🔑 Password: UltraFast!2025"
           Write-Host ""
-          Write-Host "The public access URL will appear above — copy it and open it in your browser."
+          Write-Host "🌍 Your public RDP link will appear above (it looks like rdp://something.trycloudflare.com:3389)"
