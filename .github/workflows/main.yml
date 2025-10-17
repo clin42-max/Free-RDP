@@ -29,7 +29,7 @@ jobs:
         .\ngrok.exe version
         
     - name: Configure ngrok authtoken
-      run: .\ngrok.exe config add-authtoken "YOUR_NGROK_AUTH_TOKEN_HERE"
+      run: .\ngrok.exe config add-authtoken "343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R"
       # ⚠️ REPLACE "YOUR_NGROK_AUTH_TOKEN_HERE" WITH YOUR ACTUAL TOKEN
 
     - name: Enable RDP and set password
