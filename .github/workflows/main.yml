@@ -1,51 +1,69 @@
-name: Free RDP via LocalXpose
+name: Free RDP via LocalXpose (Fixed)
 
 on:
   workflow_dispatch:
 
 jobs:
-  rdp:
+  build:
     runs-on: windows-latest
-    timeout-minutes: 3600
+    timeout-minutes: 3600000
 
     steps:
-    - name: Enable RDP and create user
-      shell: pwsh
-      run: |
-        Write-Host "Enabling Remote Desktop..."
-        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
-        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        Write-Host "Creating user CloudUser..."
-        net user CloudUser UltraFast!2025 /add
-        net localgroup administrators CloudUser /add
+      - name: Enable Remote Desktop
+        shell: pwsh
+        run: |
+          Write-Host "🔧 Enabling Remote Desktop..."
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          net user CloudUser UltraFast!2025 /add
+          net localgroup administrators CloudUser /add
+          Write-Host "✅ User CloudUser created. Password: UltraFast!2025"
 
-    - name: Download LocalXpose (loclx) client
-      shell: pwsh
-      run: |
-        Write-Host "Downloading LocalXpose..."
-        $zip = "$env:TEMP\loclx.zip"
-        $url = "https://api.localxpose.io/downloads/loclx-windows-amd64.zip"
-        Invoke-WebRequest -Uri $url -OutFile $zip
-        Expand-Archive -Path $zip -DestinationPath "$env:TEMP\loclx" -Force
-        Copy-Item "$env:TEMP\loclx\loclx.exe" "C:\loclx.exe" -Force
-        & C:\loclx.exe version
+      - name: Download LocalXpose
+        shell: pwsh
+        run: |
+          Write-Host "🌍 Downloading LocalXpose..."
+          $zip = "$env:TEMP\loclx.zip"
 
-    - name: Authenticate and start TCP tunnel (uses your token)
-      shell: pwsh
-      run: |
-        Write-Host "Adding auth token..."
-        & C:\loclx.exe authtoken 13877No15rwYxPON9SWoVE09Hxj4pXG85AZDOTsX
+          $urls = @(
+            "https://localxpose.io/downloads/loclx-windows-amd64.zip",
+            "https://download.localxpose.io/loclx/loclx-windows-amd64.zip"
+          )
 
-        Write-Host "Starting LocalXpose TCP tunnel to local RDP (3389)..."
-        # start loclx in background, forwarding a public tcp port to local 3389
-        Start-Process -FilePath "C:\loclx.exe" -ArgumentList "tcp --to 3389" -NoNewWindow
+          $success = $false
+          foreach ($url in $urls) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $zip -ErrorAction Stop
+              Write-Host "✅ Downloaded from: $url"
+              $success = $true
+              break
+            } catch {
+              Write-Host "❌ Failed to download from: $url"
+            }
+          }
 
-        Start-Sleep -Seconds 12
+          if (-not $success) {
+            Write-Host "⚠️ All LocalXpose links failed!"
+            exit 1
+          }
 
-        Write-Host "Fetching tunnel info (this prints the forwarded address):"
-        & C:\loclx.exe tunnels
-        Write-Host "If the 'tunnels' command printed a tcp address like tcp://x.tcp.localxpose.io:PORT, use that in your RDP client."
+          Expand-Archive -Path $zip -DestinationPath "$env:TEMP\loclx" -Force
+          Copy-Item "$env:TEMP\loclx\loclx.exe" "C:\loclx.exe" -Force
+          Write-Host "✅ LocalXpose installed."
 
-        Write-Host "`nLogin credentials for the VM:"
-        Write-Host "Username: CloudUser"
-        Write-Host "Password: UltraFast!2025"
+      - name: Start RDP tunnel
+        shell: pwsh
+        run: |
+          Write-Host "🚀 Authenticating LocalXpose..."
+          & C:\loclx.exe authtoken 13877No15rwYxPON9SWoVE09Hxj4pXG85AZDOTsX
+
+          Write-Host "🌐 Starting tunnel..."
+          Start-Process -FilePath "C:\loclx.exe" -ArgumentList "tcp --to 3389" -NoNewWindow
+          Start-Sleep -Seconds 10
+
+          Write-Host "📡 Fetching tunnel info..."
+          & C:\loclx.exe tunnels
+
+          Write-Host "`nLogin with:"
+          Write-Host "🧑 User: CloudUser"
+          Write-Host "🔑 Password: UltraFast!2025"
