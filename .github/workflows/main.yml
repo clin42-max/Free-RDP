@@ -1,51 +1,53 @@
-name: Manual ngrok RDP (Fixed)
+name: FINAL Stable RDP (ngrok Manual Key)
 
 on:
   workflow_dispatch:
 
 jobs:
-  rdp:
+  build:
     runs-on: windows-latest
     timeout-minutes: 3600
 
     steps:
     - name: Enable RDP and Create User
+      shell: powershell
       run: |
-        echo "🔧 Enabling RDP..."
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Write-Host "🔧 Enabling RDP..."
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" -Name "UserAuthentication" -Value 1
 
-        echo "👤 Creating user..."
+        Write-Host "👤 Creating user..."
         net user CloudUser UltraFast!2025 /add
         net localgroup administrators CloudUser /add
 
-    - name: Download and Install ngrok
+    - name: Install ngrok
       shell: powershell
       run: |
-        echo "📦 Downloading ngrok..."
-        $ProgressPreference = 'SilentlyContinue'
-        Invoke-WebRequest -Uri "https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip" -OutFile "$env:TEMP\ngrok.zip"
-        Expand-Archive "$env:TEMP\ngrok.zip" -DestinationPath "$env:TEMP\ngrok"
-        Copy-Item "$env:TEMP\ngrok\ngrok.exe" "C:\Windows\System32\ngrok.exe" -Force
-        ngrok version
+        Write-Host "📦 Downloading ngrok..."
+        $ngrokZip = "$env:TEMP\ngrok.zip"
+        $url = "https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip"
+        Invoke-WebRequest $url -OutFile $ngrokZip
+        Expand-Archive -Path $ngrokZip -DestinationPath "$env:TEMP\ngrok" -Force
+        Copy-Item "$env:TEMP\ngrok\ngrok.exe" "C:\ngrok.exe" -Force
+        Write-Host "✅ ngrok installed successfully."
 
     - name: Start ngrok Tunnel
       shell: powershell
       run: |
-        echo "🔐 Adding ngrok auth token..."
-        ngrok authtoken 343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R
+        Write-Host "🔐 Setting ngrok auth token..."
+        & C:\ngrok.exe authtoken 343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R
 
-        echo "🚀 Starting tunnel..."
-        Start-Process ngrok "tcp 3389 --region us"
-        Start-Sleep -Seconds 25
+        Write-Host "🚀 Starting tunnel..."
+        Start-Process -FilePath "C:\ngrok.exe" -ArgumentList "tcp 3389 --region us" -WindowStyle Hidden
+        Start-Sleep -Seconds 30
 
-        echo "🌍 Fetching tunnel address..."
-        $response = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels"
-        $rdpAddress = $response.tunnels[0].public_url
-        echo "============================================="
-        echo "✅ RDP is Ready!"
-        echo "Address: $rdpAddress"
-        echo "Username: CloudUser"
-        echo "Password: UltraFast!2025"
-        echo "============================================="
+        Write-Host "🌍 Fetching tunnel URL..."
+        $result = Invoke-RestMethod -Uri "http://127.0.0.1:4040/api/tunnels" -ErrorAction Stop
+        $address = $result.tunnels[0].public_url
+        Write-Host "========================================="
+        Write-Host "✅ RDP is Ready!"
+        Write-Host "Address: $address"
+        Write-Host "Username: CloudUser"
+        Write-Host "Password: UltraFast!2025"
+        Write-Host "========================================="
