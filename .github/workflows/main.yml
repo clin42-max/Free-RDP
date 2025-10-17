@@ -69,7 +69,7 @@ jobs:
         for ($i = 0; $i -lt $duration; $i++) {
           Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] RDP Session active - $($duration - $i) minutes remaining"
           Write-Host "Connect using: $env:PUBLIC_RDP_URL"
-          Write-Host "Username: runneradmin"
+          Write-Host "Username: clin42.max"
           Write-Host "Password: $env:RDP_PASSWORD"
           Write-Host "----------------------------------------"
           Start-Sleep -Seconds 60
