@@ -1,0 +1,54 @@
+name: Ultra Fast RDP (Windows)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-rdp:
+    runs-on: windows-latest
+    timeout-minutes: 3600
+
+    steps:
+    - name: Enable High Performance Mode
+      run: |
+        echo "Setting high performance power mode..."
+        powercfg -setactive SCHEME_MIN
+
+    - name: Configure RDP and Network
+      run: |
+        echo "Enabling RDP..."
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        
+        echo "Creating admin user..."
+        net user AdminRDP UltraFast!2025 /add
+        net localgroup administrators AdminRDP /add
+
+        echo "Optimizing network for high throughput..."
+        netsh int tcp set global autotuninglevel=normal
+        netsh int tcp set global chimney=enabled
+        netsh int tcp set global rss=enabled
+        netsh int tcp set global ecncapability=disabled
+        netsh int tcp show global
+
+    - name: Download ngrok
+      run: |
+        Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
+        Expand-Archive ngrok.zip
+        Move-Item .\ngrok\ngrok.exe C:\Windows\System32\ngrok.exe
+
+    - name: Start RDP Tunnel (ngrok)
+      run: |
+        echo "Authenticating ngrok..."
+        ngrok authtoken 343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R
+
+        echo "Starting ngrok TCP tunnel..."
+        Start-Process ngrok tcp 3389
+
+        echo "Waiting for tunnel to initialize..."
+        Start-Sleep -Seconds 20
+        Write-Host "✅ Connect now using Remote Desktop!"
+        Write-Host "Username: AdminRDP"
+        Write-Host "Password: UltraFast!2025"
+        Write-Host "Check ngrok dashboard for your TCP address: https://dashboard.ngrok.com/status/tunnels"
