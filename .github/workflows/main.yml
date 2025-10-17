@@ -1,4 +1,4 @@
-name: Manual ngrok RDP (v4)
+name: Manual ngrok RDP (Fixed)
 
 on:
   workflow_dispatch:
@@ -33,11 +33,11 @@ jobs:
     - name: Start ngrok Tunnel
       shell: powershell
       run: |
-        echo "🔐 Adding ngrok auth token manually..."
+        echo "🔐 Adding ngrok auth token..."
         ngrok authtoken 343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R
 
         echo "🚀 Starting tunnel..."
-        Start-Process -NoNewWindow ngrok "tcp 3389 --region eu"
+        Start-Process ngrok "tcp 3389 --region us"
         Start-Sleep -Seconds 25
 
         echo "🌍 Fetching tunnel address..."
