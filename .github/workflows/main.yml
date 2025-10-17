@@ -59,7 +59,7 @@ jobs:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
       run: |
         Write-Host "🔐 Authenticating ngrok..."
-        ngrok authtoken $Env:NGROK_AUTH_TOKEN
+        ngrok authtoken $Env:343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R
 
         Write-Host "🚀 Starting ngrok TCP tunnel on port 3389..."
         Start-Process ngrok "tcp 3389 --log=stdout > ngrok.log" -WindowStyle Hidden
