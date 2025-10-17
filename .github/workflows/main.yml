@@ -1,4 +1,4 @@
-name: Free RDP via LocalXpose (Fixed)
+name: Free RDP via Pinggy (Windows)
 
 on:
   workflow_dispatch:
@@ -6,10 +6,10 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 3600000
+    timeout-minutes: 360
 
     steps:
-      - name: Enable Remote Desktop
+      - name: Enable RDP and Create User
         shell: pwsh
         run: |
           Write-Host "🔧 Enabling Remote Desktop..."
@@ -17,53 +17,26 @@ jobs:
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           net user CloudUser UltraFast!2025 /add
           net localgroup administrators CloudUser /add
-          Write-Host "✅ User CloudUser created. Password: UltraFast!2025"
+          Write-Host "✅ User created: CloudUser / UltraFast!2025"
 
-      - name: Download LocalXpose
+      - name: Download Pinggy Client
         shell: pwsh
         run: |
-          Write-Host "🌍 Downloading LocalXpose..."
-          $zip = "$env:TEMP\loclx.zip"
+          Write-Host "🌍 Downloading Pinggy..."
+          Invoke-WebRequest -Uri "https://github.com/jpramesh/pinggy/releases/latest/download/pinggy_windows_amd64.zip" -OutFile "$env:TEMP\pinggy.zip"
+          Expand-Archive "$env:TEMP\pinggy.zip" -DestinationPath "$env:TEMP\pinggy" -Force
+          Copy-Item "$env:TEMP\pinggy\pinggy.exe" "C:\pinggy.exe" -Force
+          Write-Host "✅ Pinggy installed."
 
-          $urls = @(
-            "https://localxpose.io/downloads/loclx-windows-amd64.zip",
-            "https://download.localxpose.io/loclx/loclx-windows-amd64.zip"
-          )
-
-          $success = $false
-          foreach ($url in $urls) {
-            try {
-              Invoke-WebRequest -Uri $url -OutFile $zip -ErrorAction Stop
-              Write-Host "✅ Downloaded from: $url"
-              $success = $true
-              break
-            } catch {
-              Write-Host "❌ Failed to download from: $url"
-            }
-          }
-
-          if (-not $success) {
-            Write-Host "⚠️ All LocalXpose links failed!"
-            exit 1
-          }
-
-          Expand-Archive -Path $zip -DestinationPath "$env:TEMP\loclx" -Force
-          Copy-Item "$env:TEMP\loclx\loclx.exe" "C:\loclx.exe" -Force
-          Write-Host "✅ LocalXpose installed."
-
-      - name: Start RDP tunnel
+      - name: Start RDP Tunnel via Pinggy
         shell: pwsh
         run: |
-          Write-Host "🚀 Authenticating LocalXpose..."
-          & C:\loclx.exe authtoken 13877No15rwYxPON9SWoVE09Hxj4pXG85AZDOTsX
-
-          Write-Host "🌐 Starting tunnel..."
-          Start-Process -FilePath "C:\loclx.exe" -ArgumentList "tcp --to 3389" -NoNewWindow
+          Write-Host "🚀 Starting Pinggy tunnel..."
+          Start-Process -FilePath "C:\pinggy.exe" -ArgumentList "tcp --to 3389" -NoNewWindow
           Start-Sleep -Seconds 10
 
-          Write-Host "📡 Fetching tunnel info..."
-          & C:\loclx.exe tunnels
-
-          Write-Host "`nLogin with:"
-          Write-Host "🧑 User: CloudUser"
+          Write-Host "📡 Tunnel started!"
+          Write-Host "🧑 Username: CloudUser"
           Write-Host "🔑 Password: UltraFast!2025"
+          Write-Host ""
+          Write-Host "Use the Pinggy link above to connect via Remote Desktop."
