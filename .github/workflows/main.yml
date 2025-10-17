@@ -1,82 +1,51 @@
-name: RDP with Ngrok
+name: Free RDP via LocalXpose
 
 on:
   workflow_dispatch:
-    inputs:
-      duration:
-        description: 'RDP session duration (minutes)'
-        required: true
-        default: '600'
-        type: choice
-        options:
-        - 300
-        - 600
-        - 120000
-        - 240000
 
 jobs:
-  rdp-session:
+  rdp:
     runs-on: windows-latest
-    
+    timeout-minutes: 3600
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Download and setup ngrok
+    - name: Enable RDP and create user
+      shell: pwsh
       run: |
-        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile "ngrok.zip"
-        Expand-Archive -Path "ngrok.zip" -DestinationPath .
-        .\ngrok.exe version
-        
-    - name: Configure ngrok authtoken
-      run: .\ngrok.exe config add-authtoken "343gfZHPZFCZOLZqUNejgEb5dEC_55fTGtP4VsmPkcdQJXL9R"
-      # ⚠️ REPLACE "YOUR_NGROK_AUTH_TOKEN_HERE" WITH YOUR ACTUAL TOKEN
-
-    - name: Enable RDP and set password
-      run: |
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Write-Host "Enabling Remote Desktop..."
+        Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
         Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
-        
-        $password = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 16 | % {[char]$_})
-        $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-        Set-LocalUser -Name "runneradmin" -Password $securePassword -ErrorAction SilentlyContinue
-        if (-not $?) {
-          New-LocalUser -Name "runneradmin" -Password $securePassword -AccountNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
-          Add-LocalGroupMember -Group "Remote Desktop Users" -Member "runneradmin"
-        }
-        echo "RDP_PASSWORD=$password" | Out-File -FilePath $env:GITHUB_ENV -Append
+        Write-Host "Creating user CloudUser..."
+        net user CloudUser UltraFast!2025 /add
+        net localgroup administrators CloudUser /add
 
-    - name: Start ngrok tunnel for RDP
+    - name: Download LocalXpose (loclx) client
+      shell: pwsh
       run: |
-        Start-Process -FilePath ".\ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
-        Start-Sleep -Seconds 10
-        
-        $tunnels = Invoke-RestMethod -Uri "http://localhost:4040/api/tunnels"
-        $public_url = $tunnels.tunnels[0].public_url
-        echo "PUBLIC_RDP_URL=$public_url" | Out-File -FilePath $env:GITHUB_ENV -Append
-        
-        Write-Host "RDP Connection Details:"
-        Write-Host "URL: $public_url"
-        Write-Host "Username: runneradmin"
-        Write-Host "Password: $env:RDP_PASSWORD"
+        Write-Host "Downloading LocalXpose..."
+        $zip = "$env:TEMP\loclx.zip"
+        $url = "https://api.localxpose.io/downloads/loclx-windows-amd64.zip"
+        Invoke-WebRequest -Uri $url -OutFile $zip
+        Expand-Archive -Path $zip -DestinationPath "$env:TEMP\loclx" -Force
+        Copy-Item "$env:TEMP\loclx\loclx.exe" "C:\loclx.exe" -Force
+        & C:\loclx.exe version
 
-    - name: Keep RDP session alive
+    - name: Authenticate and start TCP tunnel (uses your token)
+      shell: pwsh
       run: |
-        $duration = ${{ github.event.inputs.duration }}
-        Write-Host "RDP session will be available for $duration minutes"
-        
-        for ($i = 0; $i -lt $duration; $i++) {
-          Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] RDP Session active - $($duration - $i) minutes remaining"
-          Write-Host "Connect using: $env:PUBLIC_RDP_URL"
-          Write-Host "Username: clin42.max"
-          Write-Host "Password: $env:RDP_PASSWORD"
-          Write-Host "----------------------------------------"
-          Start-Sleep -Seconds 60
-        }
+        Write-Host "Adding auth token..."
+        & C:\loclx.exe authtoken 13877No15rwYxPON9SWoVE09Hxj4pXG85AZDOTsX
 
-    - name: Cleanup
-      if: always()
-      run: |
-        Get-Process -Name "ngrok" -ErrorAction SilentlyContinue | Stop-Process -Force
-        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 1
+        Write-Host "Starting LocalXpose TCP tunnel to local RDP (3389)..."
+        # start loclx in background, forwarding a public tcp port to local 3389
+        Start-Process -FilePath "C:\loclx.exe" -ArgumentList "tcp --to 3389" -NoNewWindow
+
+        Start-Sleep -Seconds 12
+
+        Write-Host "Fetching tunnel info (this prints the forwarded address):"
+        & C:\loclx.exe tunnels
+        Write-Host "If the 'tunnels' command printed a tcp address like tcp://x.tcp.localxpose.io:PORT, use that in your RDP client."
+
+        Write-Host "`nLogin credentials for the VM:"
+        Write-Host "Username: CloudUser"
+        Write-Host "Password: UltraFast!2025"
